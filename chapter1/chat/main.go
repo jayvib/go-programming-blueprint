@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 	"path/filepath"
+	"flag"
 )
 
 type templateHandler struct {
@@ -19,23 +20,18 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	t.templ = template.Must(template.ParseFiles(filepath.Join("templates", t.filename)))
 	})
 
-	t.templ.Execute(w, nil)
+	t.templ.Execute(w, r)
 }
 
 func main() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		t, err := template.ParseFiles("./template/chat.html")
-		if err != nil {
-			log.Println("error:", err)
-		}
-
-		err = t.Execute(w, "Jayson")
-		if err != nil {
-			log.Println("error:", err)
-		}
-	})
-
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	var addr = flag.String("addr", ":8080", "The addr of the application") // create a flaging variable so that the host can be configured via the cli argument
+	flag.Parse()
+	r := newRoom()
+	http.Handle("/", &templateHandler{filename: "chat.html"})
+	http.Handle("/room", r)
+	go r.run()
+	log.Println("Starting web server on", *addr)
+	if err := http.ListenAndServe(*addr, nil); err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}
 }
